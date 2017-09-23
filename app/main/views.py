@@ -5,7 +5,7 @@ from .forms import EditProfileForm, EditProfileAdminForm, PostForm
 from .. import db
 from ..models import Permission, Role, User, Post
 from ..decorators import admin_required
-from flask import current_app
+from flask import current_app,make_response
 from ..decorators import permission_required
 
 @main.route('/', methods=['GET', 'POST'])
@@ -17,10 +17,17 @@ def index():
                     author=current_user._get_current_object())
         db.session.add(post)
         return redirect(url_for('.index'))
+    show_followed = False
+    if current_user.is_authenticated:
+        show_followed = bool(request.cookies.get('show_followed',''))
+    if show_followed:
+        query = current_user.followed_post
+    else:
+        query = Post.query
     page = request.args.get('page',0,type=int)
-    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(page,per_page=current_app.config['FLASK_POST_PRE_PAGE'],error_out=False)
+    pagination = query.order_by(Post.timestamp.desc()).paginate(page,per_page=current_app.config['FLASK_POST_PRE_PAGE'],error_out=False)
     posts = pagination.items
-    return render_template('index.html', form=form, posts=posts,pagination=pagination)
+    return render_template('index.html', form=form, posts=posts,show_followed=show_followed,pagination=pagination)
 
 
 @main.route('/user/<username>')
@@ -145,3 +152,16 @@ def followed_by(username):
     follows = [{'user':item.followed,'timestamp':item.timestamp} for item in pagination.items]
     return render_template('followers.html',user=user,title='Followed by',endpoint='.followed-by',pagination=pagination,follows=follows)
 
+@main.route('/all')
+@login_required
+def show_all():
+    resp = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed','',max_age=30*24*60*60)
+    return resp
+
+@main.route('/followed')
+@login_required
+def show_followed():
+    resp = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed','1',max_age=30*24*60*60)
+    return resp

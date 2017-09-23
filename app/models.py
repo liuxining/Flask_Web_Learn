@@ -53,8 +53,8 @@ class Role(db.Model):
 
 class Follow(db.Model):
     __tablename__ = 'follows'
-    follower_id = db.Column(db.Integer,db.ForeignKey(User.id),primary_key=True)
-    followed_id = db.Column(db.Integer,db.ForeignKey(User.id),primary_key=True)
+    follower_id = db.Column(db.Integer,db.ForeignKey('users.id'),primary_key=True)
+    followed_id = db.Column(db.Integer,db.ForeignKey('users.id'),primary_key=True)
     timestamp = db.Column(db.DateTime,default=datetime.utcnow())
 
 
@@ -216,6 +216,10 @@ class User(UserMixin, db.Model):
 
     def is_followed_by(self,user):
         return self.followers.filter_by(follower_id=user.id).first() is not None
+
+    @property
+    def followed_post(self):
+        return Post.query.join(Follow,Follow.followed_id == Post.author_id).filter(Follow.follower_id == self.id)
 
 
     def __repr__(self):
